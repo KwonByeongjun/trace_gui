@@ -26,6 +26,10 @@ Open:
 http://127.0.0.1:8765
 ```
 
+## Preview
+
+![Trace GUI overview](docs/preview.png)
+
 ## Views
 
 - Overview: run inventory, request count, latency, prefix hit ratio, and files.
