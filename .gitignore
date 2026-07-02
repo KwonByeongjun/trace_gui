@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.DS_Store
+.trace_gui_cache/
+screenshots/

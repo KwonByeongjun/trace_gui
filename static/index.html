@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trace GUI</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <div class="eyebrow">CoherentKV Observatory</div>
+        <h1>Experiment Trace Dashboard</h1>
+      </div>
+      <div class="source-pill" id="sourcePill">Loading sources</div>
+    </header>
+
+    <main>
+      <section class="toolbar" aria-label="Dashboard controls">
+        <div class="search-wrap">
+          <label for="searchInput">Search</label>
+          <input id="searchInput" type="search" placeholder="run id, policy, workload, model" />
+        </div>
+        <label>
+          Family
+          <select id="familyFilter"></select>
+        </label>
+        <label>
+          Mode
+          <select id="modeFilter">
+            <option value="">All</option>
+            <option value="repair_on">repair_on</option>
+            <option value="reject_only">reject_only</option>
+            <option value="none">none</option>
+          </select>
+        </label>
+        <label>
+          Sort
+          <select id="sortSelect">
+            <option value="requests_desc">Requests</option>
+            <option value="started_desc">Newest</option>
+            <option value="latency_asc">Latency low</option>
+            <option value="latency_desc">Latency high</option>
+            <option value="hit_desc">Prefix hit ratio</option>
+          </select>
+        </label>
+        <button id="refreshBtn" class="icon-button" title="Refresh run index" aria-label="Refresh run index">
+          <span aria-hidden="true">R</span>
+        </button>
+      </section>
+
+      <section class="kpi-grid" id="kpiGrid" aria-label="Key metrics"></section>
+
+      <nav class="tabs" aria-label="Views">
+        <button class="tab active" data-view="overview">Overview</button>
+        <button class="tab" data-view="compare">Ablations</button>
+        <button class="tab" data-view="detail">Run Detail</button>
+        <button class="tab" data-view="cache">Cache Events</button>
+      </nav>
+
+      <section id="overview" class="view active">
+        <div class="layout two">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Run Landscape</h2>
+              <span id="runCountLabel"></span>
+            </div>
+            <div id="familyChart" class="chart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Latency vs Prefix Reuse</h2>
+              <span>mean latency and hit ratio</span>
+            </div>
+            <div id="scatterChart" class="chart"></div>
+          </section>
+        </div>
+
+        <section class="panel table-panel">
+          <div class="panel-head">
+            <h2>Runs</h2>
+            <span>click a row to inspect trace details</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Run</th>
+                  <th>Family</th>
+                  <th>Mode</th>
+                  <th>Case</th>
+                  <th>Req</th>
+                  <th>Mean ms</th>
+                  <th>P95 ms</th>
+                  <th>Hit %</th>
+                  <th>Errors</th>
+                  <th>Files</th>
+                </tr>
+              </thead>
+              <tbody id="runsTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="compare" class="view">
+        <div class="layout two">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Repair On vs Reject Only</h2>
+              <span id="pairCountLabel"></span>
+            </div>
+            <div id="compareChart" class="chart tall"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Policy Cases</h2>
+              <span>paired runs only</span>
+            </div>
+            <div id="policyChart" class="chart tall"></div>
+          </section>
+        </div>
+        <section class="panel table-panel">
+          <div class="panel-head">
+            <h2>Ablation Pairs</h2>
+            <span>negative latency delta means repair_on was faster</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Pair</th>
+                  <th>Case</th>
+                  <th>Repeat</th>
+                  <th>Reject ms</th>
+                  <th>Repair ms</th>
+                  <th>Delta ms</th>
+                  <th>Delta %</th>
+                  <th>Hit delta</th>
+                </tr>
+              </thead>
+              <tbody id="compareTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="detail" class="view">
+        <section class="panel detail-head">
+          <div>
+            <h2 id="detailTitle">Select a run</h2>
+            <p id="detailSubtitle">Use the run table to load request timeline, tool calls, and raw event samples.</p>
+          </div>
+          <button id="openSelectedBtn" class="text-button">Load Selected</button>
+        </section>
+        <div class="kpi-grid compact" id="detailKpis"></div>
+        <div class="layout two">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Tool Calls</h2>
+              <span>from event data.tool_name</span>
+            </div>
+            <div id="toolChart" class="chart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Request Waterfall</h2>
+              <span>gateway lifecycle</span>
+            </div>
+            <div id="timelineChart" class="chart"></div>
+          </section>
+        </div>
+        <section class="panel table-panel">
+          <div class="panel-head">
+            <h2>Request Timeline</h2>
+            <span id="timelineCount"></span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Turn</th>
+                  <th>Tool</th>
+                  <th>Role</th>
+                  <th>Status</th>
+                  <th>Latency</th>
+                  <th>Hit</th>
+                  <th>Miss</th>
+                  <th>Reject</th>
+                  <th>Program</th>
+                </tr>
+              </thead>
+              <tbody id="timelineTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section id="cache" class="view">
+        <div class="layout two">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>VLLM Event Mix</h2>
+              <span id="cacheRunLabel">select a run</span>
+            </div>
+            <div id="vllmChart" class="chart"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Reject Reasons</h2>
+              <span>CoherentKV connector</span>
+            </div>
+            <div id="rejectChart" class="chart"></div>
+          </section>
+        </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Prefix Token Sequence</h2>
+            <span>loaded rows are capped for browser responsiveness</span>
+          </div>
+          <div id="prefixChart" class="chart tall"></div>
+        </section>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Raw Event Sample</h2>
+            <span>first loaded events, prompt/response text is not required</span>
+          </div>
+          <pre id="rawSample" class="raw-box">No run selected.</pre>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
